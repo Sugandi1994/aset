@@ -75,11 +75,15 @@
             #batch-container {
                 width: 100% !important;
                 margin: 0;
-                padding: 10px 5px;
+                /* PENTING: Menggunakan padding minimal dan gap agar dua stiker muat */
+                padding: 5px 0; 
+                gap: 5px; /* Jarak antar stiker */
+                
                 /* Kunci utama: Tampilkan kembali sebagai flex container */
                 display: flex !important;
                 flex-wrap: wrap !important;
-                justify-content: flex-start; /* Tata label dari kiri ke kanan */
+                /* Gunakan space-evenly untuk mendistribusikan dua stiker di satu baris */
+                justify-content: space-evenly !important; 
                 align-items: flex-start;
                 box-shadow: none;
                 background-color: white !important;
@@ -88,9 +92,12 @@
             
             .sticker-label {
                 border: 1px dashed #6b7280; 
-                margin: 5px; /* Jarak cetak yang lebih rapat */
+                /* Margin diperkecil agar dua stiker muat di kertas A4 */
+                margin: 2px; 
                 box-shadow: none;
-                width: 300px; /* Pertahankan lebar stiker */
+                /* Lebar 300px + 2px margin kiri + 2px margin kanan = 304px. 
+                   Ini akan memaksa dua stiker per baris di kertas A4 */
+                width: 300px; 
             }
         }
     </style>
@@ -117,7 +124,10 @@
                     
                     <div class="mb-6">
                         <textarea id="csv-input" rows="10" placeholder="Masukkan data aset di sini. Satu baris per aset. Pisahkan kolom dengan koma (CSV)." required
-                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-xs">UPT SD NEGERI 067953,Laptop Lenovo Dapodik,INV/SDN-953/EL/2025/001,2025-09-01</textarea>
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-xs">UPT SD NEGERI 067953,Laptop Lenovo Dapodik,INV/SDN-953/EL/2025/001,2025-09-01
+SMAN 1 JAYA SENTOSA,Proyektor Aula,INV/SMAN1/PR/2024/002,2023-11-15
+SMPN 5 KOTA,Lemari Arsip Ruang TU,INV/SMP5/LM/2024/003,2024-03-20
+SMKN 3 TEKNIK,Mesin Cetak 3D,INV/SMK3/MC/2025/004,2025-01-10</textarea>
                     </div>
 
                     <button type="submit"
