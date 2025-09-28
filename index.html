@@ -22,36 +22,53 @@
             flex-direction: column;
             justify-content: space-between;
             page-break-inside: avoid; /* Penting untuk pencetakan, agar stiker tidak terpotong */
+            flex-shrink: 0; /* Pastikan stiker tidak menyusut */
         }
 
         /* Kontainer untuk label yang dihasilkan */
         #batch-container {
             display: flex;
             flex-wrap: wrap; /* Memastikan label menyesuaikan diri dalam baris */
-            justify-center: center;
+            /* Menggunakan justify-center hanya untuk tampilan layar */
+            justify-content: center; 
             align-items: flex-start;
         }
 
-        /* Gaya untuk cetak: hanya tampilkan batch-container saat mencetak */
+        /* PERBAIKAN: Gaya untuk cetak: hanya tampilkan batch-container saat mencetak */
         @media print {
             body {
                 background-color: white !important;
+                margin: 0;
+                padding: 0;
+                /* Pastikan body menggunakan layout flex atau grid untuk konten cetak */
+                display: block; 
             }
+            
+            /* Sembunyikan semua elemen kecuali kontainer batch */
             body > *:not(#batch-container) {
                 display: none !important;
             }
+
             #batch-container {
+                width: 100%;
                 margin: 0;
-                padding: 0;
-                display: block; /* Kembalikan ke blok untuk aliran cetak yang lebih baik */
-            }
-            .sticker-label {
-                border: 1px dashed #6b7280; /* Gunakan garis putus-putus saat dicetak */
-                margin: 5px; /* Kurangi margin saat cetak untuk pengemasan yang lebih rapat */
-                display: inline-block;
+                padding: 10px;
+                /* Kunci utama: Tampilkan kembali sebagai flex container 
+                   dengan bungkus untuk mengatur stiker di halaman cetak */
+                display: flex !important;
+                flex-wrap: wrap !important;
+                justify-content: flex-start; /* Tata label dari kiri ke kanan */
+                align-items: flex-start;
                 box-shadow: none;
-                /* Tambahkan break after setiap 2-3 label jika perlu optimasi layout,
-                   tapi page-break-inside: avoid; sudah cukup */
+                background-color: white !important;
+            }
+            
+            .sticker-label {
+                border: 1px dashed #6b7280; 
+                margin: 5px; /* Jarak cetak yang lebih rapat */
+                box-shadow: none;
+                /* Pastikan lebar fixed dipertahankan */
+                width: 300px;
             }
         }
     </style>
