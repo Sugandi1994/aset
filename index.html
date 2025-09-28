@@ -11,6 +11,8 @@ href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABagAAAbbCAYAAADrekOjAAAKN2lD
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Memuat qrcode.js untuk membuat Kode QR -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <!-- Memuat SheetJS/XLSX untuk membaca dan menulis file Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         /* Gaya kustom untuk memastikan label terlihat profesional dan kecil */
         .sticker-label {
@@ -110,23 +112,37 @@ href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABagAAAbbCAYAAADrekOjAAAKN2lD
     <div class="max-w-6xl mx-auto">
         <header class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-blue-800">Pembuat Stiker Aset (Batch)</h1>
-            <p class="text-gray-600 mt-2">Masukkan data aset dalam format CSV untuk membuat banyak label sekaligus.</p>
+            <p class="text-gray-600 mt-2">Masukkan data aset dalam format CSV atau impor file XLSX/CSV.</p>
         </header>
 
         <div class="flex flex-col lg:flex-row gap-8">
             
             <!-- Panel Input Kontrol (Ditambahkan ID untuk penyembunyian saat cetak) -->
             <div id="input-panel" class="lg:w-1/2 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-                <h2 class="text-2xl font-semibold mb-4 text-blue-700">Masukkan Data Aset (CSV)</h2>
+                <h2 class="text-2xl font-semibold mb-4 text-blue-700">Masukkan Data Aset</h2>
                 
                 <p class="text-sm text-red-600 mb-2 font-medium">
-                    Format wajib: Nama Sekolah,Nama Aset,Kode Inventaris,Tanggal Akuisisi (YYYY-MM-DD)
+                    Format wajib (Kolom A-D): Nama Sekolah,Nama Aset,Kode Inventaris,Tanggal Akuisisi (YYYY-MM-DD)
                 </p>
                 
+                <!-- Kontrol Impor/Template Diperbarui -->
+                <div class="flex justify-between items-center mb-4">
+                    <button type="button" onclick="downloadExcelTemplate()"
+                        class="bg-gray-300 text-gray-800 py-1.5 px-4 rounded-lg text-sm font-semibold hover:bg-gray-400 transition duration-150">
+                        Download Template (XLSX)
+                    </button>
+                    <label for="csv-file" class="cursor-pointer bg-blue-100 text-blue-700 py-1.5 px-4 rounded-lg text-sm font-semibold hover:bg-blue-200 transition duration-150">
+                        Import File XLSX/CSV
+                    </label>
+                    <!-- Menerima file XLSX dan CSV -->
+                    <input type="file" id="csv-file" accept=".csv, .txt, .xlsx, .xls" class="hidden" onchange="handleFileUpload(event)">
+                </div>
+                <!-- Akhir Kontrol Impor/Template Diperbarui -->
+
                 <form id="asset-form" onsubmit="event.preventDefault(); generateBatchLabels();">
                     
                     <div class="mb-6">
-                        <textarea id="csv-input" rows="10" placeholder="Masukkan data aset di sini. Satu baris per aset. Pisahkan kolom dengan koma (CSV)." required
+                        <textarea id="csv-input" rows="10" placeholder="Tempelkan data CSV di sini, atau impor file XLSX." required
                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-xs">UPT SD NEGERI 067953,Laptop Lenovo Dapodik,INV/SDN-953/EL/2025/001,2025-09-01
 SMAN 1 JAYA SENTOSA,Proyektor Aula,INV/SMAN1/PR/2024/002,2023-11-15
 SMPN 5 KOTA,Lemari Arsip Ruang TU,INV/SMP5/LM/2024/003,2024-03-20
@@ -149,7 +165,7 @@ SMKN 3 TEKNIK,Mesin Cetak 3D,INV/SMK3/MC/2025/004,2025-01-10</textarea>
                 </div>
 
                 <div id="message" class="mt-4 text-gray-500">
-                    Silakan klik "Buat & Tampilkan Label" untuk melihat hasilnya.
+                    Silakan klik "Buat & Tampilkan Label" atau Impor File XLSX/CSV untuk melihat hasilnya.
                 </div>
 
                 <button id="print-button" onclick="window.print()" disabled
@@ -163,6 +179,105 @@ SMKN 3 TEKNIK,Mesin Cetak 3D,INV/SMK3/MC/2025/004,2025-01-10</textarea>
 
     <script>
         // Instance QRCodeJS tidak perlu disimpan secara global karena dibuat per label
+
+        /**
+         * Fungsi untuk mengunduh template XLSX (Excel).
+         */
+        function downloadExcelTemplate() {
+            // Data untuk template (termasuk header)
+            const templateData = [
+                ["Nama Sekolah", "Nama Aset", "Kode Inventaris", "Tanggal Akuisisi (YYYY-MM-DD)"],
+                ["SMAN 1 JAYA SENTOSA", "Laptop Acer Ruang 1", "INV/SMAN1/LT/2024/001", "2024-01-01"],
+                ["SMPN 5 KOTA", "Meja Guru Kimia", "INV/SMP5/MG/2024/003", "2024-03-20"]
+            ];
+            
+            const ws = XLSX.utils.aoa_to_sheet(templateData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data Aset");
+            
+            // Tulis dan unduh file XLSX
+            XLSX.writeFile(wb, "template_aset_sekolah.xlsx");
+        }
+
+        /**
+         * Fungsi untuk menangani unggahan file, membaca isinya, dan mengisi textarea.
+         * Sekarang mendukung XLSX/XLS dan CSV/TXT.
+         * @param {Event} event - Event unggahan file.
+         */
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            const messageElement = document.getElementById('message');
+            const printButton = document.getElementById('print-button');
+
+            if (!file) {
+                messageElement.textContent = "Tidak ada file yang dipilih.";
+                printButton.disabled = true;
+                return;
+            }
+            
+            // Set pesan loading
+            messageElement.textContent = `Membaca file ${file.name}...`;
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                let fileContent = '';
+                const extension = file.name.split('.').pop().toLowerCase();
+                
+                try {
+                    if (extension === 'xlsx' || extension === 'xls') {
+                        // --- Logika Impor XLSX ---
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        
+                        // Konversi sheet menjadi CSV string, lalu hapus baris header (baris 1)
+                        let csvString = XLSX.utils.sheet_to_csv(worksheet, { header: 1 });
+                        
+                        // Pisahkan menjadi baris, hapus baris pertama (header), dan gabungkan kembali
+                        const lines = csvString.trim().split('\n');
+                        if (lines.length > 0) {
+                            // Abaikan baris pertama (Header) saat mengimpor dari Excel template
+                            fileContent = lines.slice(1).join('\n'); 
+                        }
+
+                    } else if (extension === 'csv' || extension === 'txt') {
+                        // --- Logika Impor CSV/TXT (text-based) ---
+                        fileContent = e.target.result;
+                        
+                    } else {
+                         throw new Error("Format file tidak didukung.");
+                    }
+
+                    // Isi textarea dengan konten yang sudah diproses
+                    document.getElementById('csv-input').value = fileContent.trim();
+                    // Setelah mengisi textarea, otomatis buat label
+                    generateBatchLabels();
+
+                } catch (error) {
+                    messageElement.textContent = `Gagal memproses file: ${error.message}`;
+                    printButton.disabled = true;
+                } finally {
+                    // Bersihkan input file agar file yang sama bisa diupload ulang
+                    event.target.value = ''; 
+                }
+            };
+
+            reader.onerror = function() {
+                messageElement.textContent = 'Gagal membaca file. Pastikan format file benar.';
+                printButton.disabled = true;
+                event.target.value = '';
+            };
+            
+            // Untuk XLSX/XLS, kita harus membaca sebagai ArrayBuffer
+            if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.readAsText(file);
+            }
+        }
+
 
         /**
          * Mengambil data dari form CSV, memproses, dan menghasilkan semua label.
@@ -243,11 +358,16 @@ SMKN 3 TEKNIK,Mesin Cetak 3D,INV/SMK3/MC/2025/004,2025-01-10</textarea>
             let formattedDate;
             try {
                 const dateObj = new Date(data.acquisitionDate);
-                formattedDate = dateObj.toLocaleDateString('id-ID', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
+                // Cek apakah tanggal valid sebelum format
+                if (isNaN(dateObj) || data.acquisitionDate.length < 10) { // Cek format tanggal (YYYY-MM-DD)
+                    formattedDate = data.acquisitionDate;
+                } else {
+                    formattedDate = dateObj.toLocaleDateString('id-ID', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                }
             } catch (e) {
                 formattedDate = data.acquisitionDate; // Tampilkan mentah jika format gagal
             }
