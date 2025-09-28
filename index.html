@@ -34,41 +34,63 @@
             align-items: flex-start;
         }
 
-        /* PERBAIKAN: Gaya untuk cetak: hanya tampilkan batch-container saat mencetak */
+        /* --- PERBAIKAN CSS CETAK --- */
         @media print {
             body {
                 background-color: white !important;
                 margin: 0;
                 padding: 0;
-                /* Pastikan body menggunakan layout flex atau grid untuk konten cetak */
-                display: block; 
             }
             
-            /* Sembunyikan semua elemen kecuali kontainer batch */
-            body > *:not(#batch-container) {
+            /* Sembunyikan Header */
+            header {
                 display: none !important;
             }
 
-            #batch-container {
+            /* Sembunyikan Panel Input (ID baru: #input-panel) */
+            #input-panel {
+                display: none !important;
+            }
+            
+            /* Sembunyikan elemen di dalam Panel Output yang tidak diperlukan saat cetak */
+            #output-panel h2, 
+            #output-panel #message, 
+            #output-panel #print-button {
+                display: none !important;
+            }
+            
+            /* Kontainer flex utama (yang berisi panel input dan output) diatur ulang agar tampil penuh */
+            .flex.flex-col.lg\:flex-row {
+                display: block !important;
                 width: 100%;
+            }
+
+            /* Hapus batasan lebar pada kontainer paling luar */
+            .max-w-6xl {
+                max-width: none !important;
+                margin: 0 !important;
+            }
+
+            /* Atur ulang batch-container agar memenuhi halaman cetak */
+            #batch-container {
+                width: 100% !important;
                 margin: 0;
-                padding: 10px;
-                /* Kunci utama: Tampilkan kembali sebagai flex container 
-                   dengan bungkus untuk mengatur stiker di halaman cetak */
+                padding: 10px 5px;
+                /* Kunci utama: Tampilkan kembali sebagai flex container */
                 display: flex !important;
                 flex-wrap: wrap !important;
                 justify-content: flex-start; /* Tata label dari kiri ke kanan */
                 align-items: flex-start;
                 box-shadow: none;
                 background-color: white !important;
+                min-height: auto !important;
             }
             
             .sticker-label {
                 border: 1px dashed #6b7280; 
                 margin: 5px; /* Jarak cetak yang lebih rapat */
                 box-shadow: none;
-                /* Pastikan lebar fixed dipertahankan */
-                width: 300px;
+                width: 300px; /* Pertahankan lebar stiker */
             }
         }
     </style>
@@ -83,8 +105,8 @@
 
         <div class="flex flex-col lg:flex-row gap-8">
             
-            <!-- Panel Input Kontrol -->
-            <div class="lg:w-1/2 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <!-- Panel Input Kontrol (Ditambahkan ID untuk penyembunyian saat cetak) -->
+            <div id="input-panel" class="lg:w-1/2 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
                 <h2 class="text-2xl font-semibold mb-4 text-blue-700">Masukkan Data Aset (CSV)</h2>
                 
                 <p class="text-sm text-red-600 mb-2 font-medium">
@@ -95,20 +117,18 @@
                     
                     <div class="mb-6">
                         <textarea id="csv-input" rows="10" placeholder="Masukkan data aset di sini. Satu baris per aset. Pisahkan kolom dengan koma (CSV)." required
-                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-xs">UPT SD NEGERI 067953,Laptop Lenovo Dapodik,INV/SDN-953/EL/2025/001,2025-09-01
-SMAN 1 JAYA SENTOSA,Proyektor Aula,INV/SMAN1/PR/2024/002,2023-11-15
-SMAN 2 MULIA,Meja Guru Kimia,INV/SMAN2/MG/2024/003,2024-03-20</textarea>
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-xs">UPT SD NEGERI 067953,Laptop Lenovo Dapodik,INV/SDN-953/EL/2025/001,2025-09-01</textarea>
                     </div>
 
                     <button type="submit"
                             class="w-full bg-blue-600 text-white py-2 px-4 border border-transparent rounded-lg shadow-md font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
-                        Buat & Tampilkan 3+ Label
+                        Buat & Tampilkan Label
                     </button>
                 </form>
             </div>
 
-            <!-- Panel Pratinjau Stiker -->
-            <div class="lg:w-1/2 bg-white p-6 rounded-xl shadow-lg flex flex-col items-center">
+            <!-- Panel Pratinjau Stiker (Ditambahkan ID untuk kontrol saat cetak) -->
+            <div id="output-panel" class="lg:w-1/2 bg-white p-6 rounded-xl shadow-lg flex flex-col items-center">
                 <h2 class="text-2xl font-semibold mb-4 text-blue-700">Pratinjau Label Batch</h2>
                 
                 <div id="batch-container" class="bg-gray-100 p-2 rounded-lg w-full min-h-64">
@@ -219,7 +239,6 @@ SMAN 2 MULIA,Meja Guru Kimia,INV/SMAN2/MG/2024/003,2024-03-20</textarea>
                 formattedDate = data.acquisitionDate; // Tampilkan mentah jika format gagal
             }
 
-            // MENGHAPUS GENERASI ID ACAK.
             // Gunakan ID yang sudah disediakan di objek data (data.qrcodeId)
             const qrcodeId = data.qrcodeId;
             
