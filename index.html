@@ -122,7 +122,7 @@ href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABagAAAbbCAYAAADrekOjAAAKN2lD
                 <h2 class="text-2xl font-semibold mb-4 text-blue-700">Masukkan Data Aset</h2>
                 
                 <p class="text-sm text-red-600 mb-2 font-medium">
-                    Format wajib (Kolom A-D): Nama Sekolah,Nama Aset,Kode Inventaris,Tanggal Akuisisi (YYYY-MM-DD)
+                    Format wajib (Kolom A-E): Nama Sekolah,Nama Aset,Kode Inventaris,Tanggal Akuisisi (YYYY-MM-DD),**Jenis Aset**
                 </p>
                 
                 <!-- Kontrol Impor/Template Diperbarui -->
@@ -143,10 +143,10 @@ href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABagAAAbbCAYAAADrekOjAAAKN2lD
                     
                     <div class="mb-6">
                         <textarea id="csv-input" rows="10" placeholder="Tempelkan data CSV di sini, atau impor file XLSX." required
-                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-xs">UPT SD NEGERI 067953,Laptop Lenovo Dapodik,INV/SDN-953/EL/2025/001,2025-09-01
-UPT SD NEGERI 067953,Proyektor Aula,INV/SDN-953/PR/2024/002,2023-11-15
-UPT SD NEGERI 067953,Lemari Arsip Ruang TU,INV/SDN-953/LM/2024/003,2024-03-20
-UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10</textarea>
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-xs">UPT SD NEGERI 067953,Laptop Lenovo Dapodik,INV/SDN-953/EL/2025/001,2025-09-01,ASET BOS 2025
+UPT SD NEGERI 067953,Laptop Lenovo ARKAS,INV/SDN-953/PR/2025/002,2025-09-01,ASET BOS 2025
+UPT SD NEGERI 067953,Lemari Arsip Ruang TU,INV/SDN-953/LM/2024/003,2024-03-20,ASET DINAS 2023
+UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</textarea>
                     </div>
 
                     <button type="submit"
@@ -184,11 +184,11 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10</textarea
          * Fungsi untuk mengunduh template XLSX (Excel).
          */
         function downloadExcelTemplate() {
-            // Data untuk template (termasuk header)
+            // Data untuk template (termasuk header, sekarang 5 kolom)
             const templateData = [
-                ["Nama Sekolah", "Nama Aset", "Kode Inventaris", "Tanggal Akuisisi (YYYY-MM-DD)"],
-                ["SMAN 1 JAYA SENTOSA", "Laptop Acer Ruang 1", "INV/SMAN1/LT/2024/001", "2024-01-01"],
-                ["SMPN 5 KOTA", "Meja Guru Kimia", "INV/SMP5/MG/2024/003", "2024-03-20"]
+                ["Nama Sekolah", "Nama Aset", "Kode Inventaris", "Tanggal Akuisisi (YYYY-MM-DD)", "Jenis Aset"],
+                ["SMAN 1 JAYA SENTOSA", "Laptop Acer Ruang 1", "INV/SMAN1/LT/2024/001", "2024-01-01", "BOS 2024"],
+                ["SMPN 5 KOTA", "Meja Guru Kimia", "INV/SMP5/MG/2024/003", "2024-03-20", "ASET Dinas 2023"]
             ];
             
             const ws = XLSX.utils.aoa_to_sheet(templateData);
@@ -309,31 +309,31 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10</textarea
                 // Catatan: Ini adalah parser CSV yang sangat sederhana.
                 const columns = lineTrimmed.split(',').map(col => col.trim());
 
-                // Memastikan minimal 4 kolom ada
-                if (columns.length < 4) {
-                    console.error(`Baris ${index + 1} diabaikan: Format tidak valid.`);
+                // Memastikan minimal 5 kolom ada (Dulu 4)
+                if (columns.length < 5) {
+                    console.error(`Baris ${index + 1} diabaikan: Format tidak valid. Diperlukan 5 kolom, ditemukan ${columns.length}.`);
                     return; // Lewati baris yang tidak valid
                 }
 
                 // Buat ID yang konsisten untuk elemen QR Code berdasarkan indeks
                 const qrcodeId = `qrcode-${index}`;
                 
+                // MENGAMBIL KOLOM KE-5 (INDEX 4) SEBAGAI JENIS ASET
                 const data = {
                     schoolName: columns[0],
                     assetName: columns[1],
                     assetCode: columns[2],
                     acquisitionDate: columns[3],
-                    qrcodeId: qrcodeId // Tambahkan ID ke objek data untuk konsistensi
+                    assetType: columns[4], // Kolom baru
+                    qrcodeId: qrcodeId 
                 };
                 
                 // Hasilkan dan tambahkan HTML untuk label tunggal
                 const labelElement = document.createElement('div');
-                // Menggunakan data yang kini menyertakan qrcodeId
                 labelElement.innerHTML = generateSingleLabelHtml(data); 
                 container.appendChild(labelElement.firstElementChild); // Ambil div .sticker-label
                 
                 // Hasilkan QR Code di elemen label yang baru dibuat
-                // Gunakan ID yang konsisten yang baru dibuat
                 generateQRCode(data.qrcodeId, data);
 
                 generatedCount++;
@@ -351,7 +351,7 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10</textarea
 
         /**
          * Mengembalikan string HTML untuk satu stiker label.
-         * @param {Object} data - Objek data aset. Harus menyertakan data.qrcodeId.
+         * @param {Object} data - Objek data aset. Harus menyertakan data.qrcodeId dan data.assetType.
          */
         function generateSingleLabelHtml(data) {
             // Format tanggal agar lebih mudah dibaca
@@ -379,6 +379,8 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10</textarea
                 <div class="sticker-label bg-white">
                     <div class="text-center border-b pb-1 mb-2 border-gray-400">
                         <p class="font-bold text-xs uppercase text-blue-800">${data.schoolName}</p>
+                        <!-- MENAMPILKAN JENIS ASET BARU -->
+                        <p class="text-xs text-gray-600 font-medium mt-0.5">${data.assetType}</p>
                     </div>
                     
                     <div class="flex items-start">
@@ -419,8 +421,10 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10</textarea
             qrcodeDiv.innerHTML = '';
             
             // Data QR Code (menggunakan format JSON string)
+            // Tambahkan jenis aset ke data QR Code
             const qrData = JSON.stringify({
                 sekolah: data.schoolName,
+                jenis: data.assetType, // Data baru
                 nama: data.assetName,
                 kode: data.assetCode,
                 tgl: data.acquisitionDate
