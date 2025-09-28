@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pembuat Stiker Label Aset Sekolah (Batch)</title>
+    <!-- Memuat Tailwind CSS untuk desain responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuat qrcode.js untuk membuat Kode QR -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        /* Gaya kustom untuk memastikan label terlihat profesional dan kecil */
+        .sticker-label {
+            /* Ukuran label yang ideal untuk stiker (sekitar 7.6cm) */
+            width: 300px; 
+            height: auto;
+            border: 1px solid #9ca3af; /* Border lebih tipis untuk batch */
+            padding: 8px;
+            margin: 10px; /* Jarak antar stiker */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            page-break-inside: avoid; /* Penting untuk pencetakan, agar stiker tidak terpotong */
+        }
+
+        /* Kontainer untuk label yang dihasilkan */
+        #batch-container {
+            display: flex;
+            flex-wrap: wrap; /* Memastikan label menyesuaikan diri dalam baris */
+            justify-center: center;
+            align-items: flex-start;
+        }
+
+        /* Gaya untuk cetak: hanya tampilkan batch-container saat mencetak */
+        @media print {
+            body {
+                background-color: white !important;
+            }
+            body > *:not(#batch-container) {
+                display: none !important;
+            }
+            #batch-container {
+                margin: 0;
+                padding: 0;
+                display: block; /* Kembalikan ke blok untuk aliran cetak yang lebih baik */
+            }
+            .sticker-label {
+                border: 1px dashed #6b7280; /* Gunakan garis putus-putus saat dicetak */
+                margin: 5px; /* Kurangi margin saat cetak untuk pengemasan yang lebih rapat */
+                display: inline-block;
+                box-shadow: none;
+                /* Tambahkan break after setiap 2-3 label jika perlu optimasi layout,
+                   tapi page-break-inside: avoid; sudah cukup */
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 md:p-8 font-sans">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-blue-800">Pembuat Stiker Aset (Batch)</h1>
+            <p class="text-gray-600 mt-2">Masukkan data aset dalam format CSV untuk membuat banyak label sekaligus.</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+            
+            <!-- Panel Input Kontrol -->
+            <div class="lg:w-1/2 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                <h2 class="text-2xl font-semibold mb-4 text-blue-700">Masukkan Data Aset (CSV)</h2>
+                
+                <p class="text-sm text-red-600 mb-2 font-medium">
+                    Format wajib: Nama Sekolah,Nama Aset,Kode Inventaris,Tanggal Akuisisi (YYYY-MM-DD)
+                </p>
+                
+                <form id="asset-form" onsubmit="event.preventDefault(); generateBatchLabels();">
+                    
+                    <div class="mb-6">
+                        <textarea id="csv-input" rows="10" placeholder="Masukkan data aset di sini. Satu baris per aset. Pisahkan kolom dengan koma (CSV)." required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm font-mono text-xs">SMAN 1 JAYA SENTOSA,Laptop Acer Ruang 1,INV/SMAN1/LT/2024/001,2024-01-01
+SMAN 1 JAYA SENTOSA,Proyektor Aula,INV/SMAN1/PR/2024/002,2023-11-15
+SMAN 2 MULIA,Meja Guru Kimia,INV/SMAN2/MG/2024/003,2024-03-20</textarea>
+                    </div>
+
+                    <button type="submit"
+                            class="w-full bg-blue-600 text-white py-2 px-4 border border-transparent rounded-lg shadow-md font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
+                        Buat & Tampilkan 3+ Label
+                    </button>
+                </form>
+            </div>
+
+            <!-- Panel Pratinjau Stiker -->
+            <div class="lg:w-1/2 bg-white p-6 rounded-xl shadow-lg flex flex-col items-center">
+                <h2 class="text-2xl font-semibold mb-4 text-blue-700">Pratinjau Label Batch</h2>
+                
+                <div id="batch-container" class="bg-gray-100 p-2 rounded-lg w-full min-h-64">
+                    <!-- Semua label akan dimasukkan di sini oleh JavaScript -->
+                </div>
+
+                <div id="message" class="mt-4 text-gray-500">
+                    Silakan klik "Buat & Tampilkan Label" untuk melihat hasilnya.
+                </div>
+
+                <button id="print-button" onclick="window.print()" disabled
+                        class="mt-6 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    Cetak Semua Label
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Instance QRCodeJS tidak perlu disimpan secara global karena dibuat per label
+
+        /**
+         * Mengambil data dari form CSV, memproses, dan menghasilkan semua label.
+         */
+        function generateBatchLabels() {
+            const csvData = document.getElementById('csv-input').value;
+            const container = document.getElementById('batch-container');
+            const messageElement = document.getElementById('message');
+            const printButton = document.getElementById('print-button');
+            
+            // Bersihkan kontainer sebelumnya
+            container.innerHTML = '';
+            
+            const lines = csvData.trim().split('\n');
+            let generatedCount = 0;
+
+            if (lines.length === 0 || csvData.trim() === '') {
+                messageElement.textContent = "Data CSV kosong. Harap masukkan data aset.";
+                printButton.disabled = true;
+                return;
+            }
+
+            // Loop melalui setiap baris data
+            lines.forEach((line, index) => {
+                const lineTrimmed = line.trim();
+                if (lineTrimmed === '') return;
+
+                // Pisahkan kolom menggunakan koma (CSV)
+                // Catatan: Ini adalah parser CSV yang sangat sederhana.
+                const columns = lineTrimmed.split(',').map(col => col.trim());
+
+                // Memastikan minimal 4 kolom ada
+                if (columns.length < 4) {
+                    console.error(`Baris ${index + 1} diabaikan: Format tidak valid.`);
+                    return; // Lewati baris yang tidak valid
+                }
+
+                // Buat ID yang konsisten untuk elemen QR Code berdasarkan indeks
+                const qrcodeId = `qrcode-${index}`;
+                
+                const data = {
+                    schoolName: columns[0],
+                    assetName: columns[1],
+                    assetCode: columns[2],
+                    acquisitionDate: columns[3],
+                    qrcodeId: qrcodeId // Tambahkan ID ke objek data untuk konsistensi
+                };
+                
+                // Hasilkan dan tambahkan HTML untuk label tunggal
+                const labelElement = document.createElement('div');
+                // Menggunakan data yang kini menyertakan qrcodeId
+                labelElement.innerHTML = generateSingleLabelHtml(data); 
+                container.appendChild(labelElement.firstElementChild); // Ambil div .sticker-label
+                
+                // Hasilkan QR Code di elemen label yang baru dibuat
+                // Gunakan ID yang konsisten yang baru dibuat
+                generateQRCode(data.qrcodeId, data);
+
+                generatedCount++;
+            });
+
+            // Perbarui status dan tombol cetak
+            if (generatedCount > 0) {
+                messageElement.textContent = `Berhasil membuat ${generatedCount} label. Siap dicetak.`;
+                printButton.disabled = false;
+            } else {
+                messageElement.textContent = "Tidak ada label yang valid ditemukan dari input CSV.";
+                printButton.disabled = true;
+            }
+        }
+
+        /**
+         * Mengembalikan string HTML untuk satu stiker label.
+         * @param {Object} data - Objek data aset. Harus menyertakan data.qrcodeId.
+         */
+        function generateSingleLabelHtml(data) {
+            // Format tanggal agar lebih mudah dibaca
+            let formattedDate;
+            try {
+                const dateObj = new Date(data.acquisitionDate);
+                formattedDate = dateObj.toLocaleDateString('id-ID', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            } catch (e) {
+                formattedDate = data.acquisitionDate; // Tampilkan mentah jika format gagal
+            }
+
+            // MENGHAPUS GENERASI ID ACAK.
+            // Gunakan ID yang sudah disediakan di objek data (data.qrcodeId)
+            const qrcodeId = data.qrcodeId;
+            
+            return `
+                <div class="sticker-label bg-white">
+                    <div class="text-center border-b pb-1 mb-2 border-gray-400">
+                        <p class="font-bold text-xs uppercase text-blue-800">${data.schoolName}</p>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <div class="flex-grow">
+                            <p class="text-xs text-gray-600 font-medium">Aset:</p>
+                            <p class="font-extrabold text-sm leading-tight text-gray-900 mb-1">${data.assetName}</p>
+                            
+                            <p class="text-xs text-gray-600 font-medium">Kode INV:</p>
+                            <p class="font-mono text-xs leading-snug text-gray-700 mb-1">${data.assetCode}</p>
+                            
+                            <p class="text-xs text-gray-600 font-medium">Tgl Akuisisi:</p>
+                            <p class="text-xs leading-snug text-gray-700">${formattedDate}</p>
+                        </div>
+
+                        <div id="${qrcodeId}" class="ml-4 flex-shrink-0">
+                            <!-- QR Code akan dihasilkan di sini -->
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Menghasilkan Kode QR untuk data aset tertentu.
+         * @param {string} targetId - ID elemen div tempat QR akan digambar.
+         * @param {Object} data - Objek data aset.
+         */
+        function generateQRCode(targetId, data) {
+            const qrcodeDiv = document.getElementById(targetId);
+            
+            // Tambahkan console log untuk debugging
+            if (!qrcodeDiv) {
+                console.error(`Error: Element with ID ${targetId} not found in the DOM.`);
+                return;
+            }
+
+            // Hapus QR Code lama jika ada
+            qrcodeDiv.innerHTML = '';
+            
+            // Data QR Code (menggunakan format JSON string)
+            const qrData = JSON.stringify({
+                sekolah: data.schoolName,
+                nama: data.assetName,
+                kode: data.assetCode,
+                tgl: data.acquisitionDate
+            });
+
+            // Inisialisasi instance qrcode baru
+            new QRCode(qrcodeDiv, {
+                text: qrData,
+                width: 75, // Ukuran QR sedikit lebih kecil
+                height: 75,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        // Jalankan fungsi generateBatchLabels secara otomatis saat halaman dimuat
+        window.onload = function() {
+            // Panggil fungsi untuk menghasilkan label dari data default
+            generateBatchLabels();
+        }
+    </script>
+</body>
+</html>
