@@ -13,6 +13,7 @@ href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABagAAAbbCAYAAADrekOjAAAKN2lD
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <!-- Memuat SheetJS/XLSX untuk membaca dan menulis file Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"></link>
     <style>
         /* Gaya kustom untuk memastikan label terlihat profesional dan kecil */
         .sticker-label {
@@ -37,6 +38,9 @@ href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABagAAAbbCAYAAADrekOjAAAKN2lD
             /* Menggunakan justify-center hanya untuk tampilan layar */
             justify-content: center; 
             align-items: flex-start;
+            overflow-y: auto; /* Tambahkan scroll vertikal */
+            max-height: 500px; /* Batas tinggi maksimum */
+            padding-right: 5px; /* Ruang untuk scrollbar */
         }
 
         /* --- PERBAIKAN CSS CETAK --- */
@@ -60,7 +64,9 @@ href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABagAAAbbCAYAAADrekOjAAAKN2lD
             /* Sembunyikan elemen di dalam Panel Output yang tidak diperlukan saat cetak */
             #output-panel h2, 
             #output-panel #message, 
-            #output-panel #print-button {
+            #output-panel #print-button,
+            #output-panel #pdf-export-button,
+            #output-panel #undo-redo-controls {
                 display: none !important;
             }
             
@@ -111,7 +117,7 @@ href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABagAAAbbCAYAAADrekOjAAAKN2lD
 
     <div class="max-w-6xl mx-auto">
         <header class="text-center mb-8">
-            <h1 class="text-4xl font-extrabold text-blue-800">Pembuat Stiker Aset (Batch)</h1>
+            <h1 class="text-4xl font-extrabold text-blue-800">Pembuat Stiker Label Aset Sekolah (Batch)</h1>
             <p class="text-gray-600 mt-2">Masukkan data aset dalam format CSV atau impor file XLSX/CSV.</p>
         </header>
 
@@ -135,7 +141,7 @@ href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABagAAAbbCAYAAADrekOjAAAKN2lD
                         Import File XLSX/CSV
                     </label>
                     <!-- Menerima file XLSX dan CSV -->
-                    <input type="file" id="csv-file" accept=".csv, .txt, .xlsx, .xls" class="hidden" onchange="handleFileUpload(event)">
+                    <input type="file" id="csv-file" accept=".csv,.txt,.xlsx,.xls" class="hidden" onchange="handleFileUpload(event)">
                 </div>
                 <!-- Akhir Kontrol Impor/Template Diperbarui -->
 
@@ -168,9 +174,25 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
                     Silakan klik "Buat & Tampilkan Label" atau Impor File XLSX/CSV untuk melihat hasilnya.
                 </div>
 
+                <div id="undo-redo-controls" class="mt-4 flex gap-2">
+                    <button id="undo-btn" onclick="undo()" disabled
+                            class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition disabled:opacity-50">
+                        <i class="fas fa-undo"></i> Undo
+                    </button>
+                    <button id="redo-btn" onclick="redo()" disabled
+                            class="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition disabled:opacity-50">
+                        <i class="fas fa-redo"></i> Redo
+                    </button>
+                </div>
+
                 <button id="print-button" onclick="window.print()" disabled
-                        class="mt-6 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        class="mt-4 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed">
                     Cetak Semua Label
+                </button>
+
+                <button id="pdf-export-button" onclick="exportToPDF()" disabled
+                        class="mt-2 px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    Ekspor ke PDF
                 </button>
             </div>
         </div>
@@ -187,7 +209,7 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
             // Data untuk template (termasuk header, sekarang 5 kolom)
             const templateData = [
                 ["Nama Sekolah", "Nama Aset", "Kode Inventaris", "Tanggal Akuisisi (YYYY-MM-DD)", "Jenis Aset"],
-                ["UPT SD NEGERI 067953", "Laptop Lenovo", "INV/SMAN1/LT/2024/001", "2024-01-01", "BOS 2024"],
+                ["UPT SD NEGERI 067953", "Laptop Lenovo", "INV/SMAN1/LT/2024/001", "2024-01-01", "ASET BOS 2024"],
                 ["UPT SD NEGERI 067953", "Printer", "INV/SMP5/MG/2024/003", "2024-03-20", "ASET Dinas 2023"]
             ];
             
@@ -208,16 +230,18 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
             const file = event.target.files[0];
             const messageElement = document.getElementById('message');
             const printButton = document.getElementById('print-button');
-
+            const pdfExportButton = document.getElementById('pdf-export-button');
+            
             if (!file) {
                 messageElement.textContent = "Tidak ada file yang dipilih.";
                 printButton.disabled = true;
+                pdfExportButton.disabled = true;
                 return;
             }
             
             // Set pesan loading
             messageElement.textContent = `Membaca file ${file.name}...`;
-
+            
             const reader = new FileReader();
 
             reader.onload = function(e) {
@@ -235,7 +259,7 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
                         // Konversi sheet menjadi CSV string, lalu hapus baris header (baris 1)
                         let csvString = XLSX.utils.sheet_to_csv(worksheet, { header: 1 });
                         
-                        // Pisahkan menjadi baris, hapus baris pertama (header), dan gabungkan kembali
+                        // Pisahkan menjadi baris, hapus baris pertama (Header) saat mengimpor dari Excel template
                         const lines = csvString.trim().split('\n');
                         if (lines.length > 0) {
                             // Abaikan baris pertama (Header) saat mengimpor dari Excel template
@@ -258,6 +282,7 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
                 } catch (error) {
                     messageElement.textContent = `Gagal memproses file: ${error.message}`;
                     printButton.disabled = true;
+                    pdfExportButton.disabled = true;
                 } finally {
                     // Bersihkan input file agar file yang sama bisa diupload ulang
                     event.target.value = ''; 
@@ -267,6 +292,7 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
             reader.onerror = function() {
                 messageElement.textContent = 'Gagal membaca file. Pastikan format file benar.';
                 printButton.disabled = true;
+                pdfExportButton.disabled = true;
                 event.target.value = '';
             };
             
@@ -278,7 +304,6 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
             }
         }
 
-
         /**
          * Mengambil data dari form CSV, memproses, dan menghasilkan semua label.
          */
@@ -287,6 +312,7 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
             const container = document.getElementById('batch-container');
             const messageElement = document.getElementById('message');
             const printButton = document.getElementById('print-button');
+            const pdfExportButton = document.getElementById('pdf-export-button');
             
             // Bersihkan kontainer sebelumnya
             container.innerHTML = '';
@@ -297,6 +323,7 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
             if (lines.length === 0 || csvData.trim() === '') {
                 messageElement.textContent = "Data CSV kosong. Harap masukkan data aset.";
                 printButton.disabled = true;
+                pdfExportButton.disabled = true;
                 return;
             }
 
@@ -343,9 +370,11 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
             if (generatedCount > 0) {
                 messageElement.textContent = `Berhasil membuat ${generatedCount} label. Siap dicetak.`;
                 printButton.disabled = false;
+                pdfExportButton.disabled = false;
             } else {
                 messageElement.textContent = "Tidak ada label yang valid ditemukan dari input CSV.";
                 printButton.disabled = true;
+                pdfExportButton.disabled = true;
             }
         }
 
@@ -445,6 +474,59 @@ UPT SD NEGERI 067953,Mesin Cetak 3D,INV/SDN-953/MC/2025/004,2025-01-10,HIBAH</te
         window.onload = function() {
             // Panggil fungsi untuk menghasilkan label dari data default
             generateBatchLabels();
+        }
+
+        // Fungsi untuk menyimpan state ke history stack
+        function saveState() {
+            const currentState = document.getElementById('csv-input').value;
+            historyStack.splice(currentStep + 1);
+            historyStack.push(currentState);
+            currentStep++;
+        }
+
+        // Fungsi undo
+        function undo() {
+            if (currentStep > 0) {
+                currentStep--;
+                document.getElementById('csv-input').value = historyStack[currentStep];
+                generateBatchLabels();
+            }
+        }
+
+        // Fungsi redo
+        function redo() {
+            if (currentStep < historyStack.length - 1) {
+                currentStep++;
+                document.getElementById('csv-input').value = historyStack[currentStep];
+                generateBatchLabels();
+            }
+        }
+
+        // Fungsi untuk ekspor ke PDF
+        async function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('landscape', 'mm', 'a4');
+            const labels = document.querySelectorAll('.sticker-label');
+            
+            let yPosition = 10;
+            
+            for (let i = 0; i < labels.length; i++) {
+                if (yPosition > 270) {
+                    pdf.addPage();
+                    yPosition = 10;
+                }
+                
+                pdf.html(labels[i], {
+                    callback: () => {
+                        yPosition += 80;
+                    },
+                    x: 10,
+                    y: yPosition,
+                    width: 280
+                });
+            }
+            
+            pdf.save('labels.pdf');
         }
     </script>
 </body>
